@@ -1,6 +1,6 @@
-(empty)node_modules/
-.next/
-dist/
-build/
+# Compiled and build artifacts
+__pycache__/
+*.pyc
+
+# Logs and temp files
 *.log
-node_modules/

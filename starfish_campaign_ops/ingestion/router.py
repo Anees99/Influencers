@@ -147,7 +147,10 @@ def _route_contract(res: FileResult, blob: bytes, campaign_id: str) -> None:
             raw = {"creator_name": creator_name, "instagram_handle": handle,
                    "campaign_name": fields["campaign_name"], "fee": fee,
                    "currency": cur or "USD", "deadline": deadline,
-                   "deliverables": deliv, "payment_terms": fields["payment_terms"],
+                   # ContractExtraction.deliverables is list[str]; the typed
+                   # [{type,count}] structure is kept on the Contract record.
+                   "deliverables": [f"{d['count']} {d['type']}" for d in deliv],
+                   "payment_terms": fields["payment_terms"],
                    "commission": parse_amount(fields["commission_raw"])[0],
                    "bonus": parse_amount(fields["bonus_raw"])[0],
                    "warnings": extraction_warns, "confidence": conf,
