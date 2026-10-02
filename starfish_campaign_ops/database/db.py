@@ -26,12 +26,15 @@ CREATE TABLE IF NOT EXISTS contracts (
     contract_id TEXT PRIMARY KEY, campaign_id TEXT, creator_id TEXT,
     source_file TEXT, source_page INTEGER, agreed_fee REAL, currency TEXT,
     deadline TEXT, deliverables_json TEXT, extraction_confidence REAL,
-    match_confidence REAL, match_method TEXT, match_reason TEXT
+    match_confidence REAL, match_method TEXT, match_reason TEXT,
+    _extracted TEXT
 );
 CREATE TABLE IF NOT EXISTS deliverables (
     deliverable_id TEXT PRIMARY KEY, campaign_id TEXT, creator_id TEXT,
     content_id TEXT, platform TEXT, content_type TEXT, required INTEGER,
-    published_at TEXT, approval_status TEXT, source_file TEXT
+    published_at TEXT, approval_status TEXT, source_file TEXT,
+    match_confidence REAL DEFAULT 0, match_method TEXT DEFAULT '',
+    match_reason TEXT DEFAULT ''
 );
 CREATE TABLE IF NOT EXISTS invoices (
     invoice_id TEXT PRIMARY KEY, invoice_number TEXT, campaign_id TEXT,
@@ -114,7 +117,8 @@ def insert_contract(conn, ct) -> None:
         (ct.contract_id, ct.campaign_id, ct.creator_id, ct.source_file,
          ct.source_page, ct.agreed_fee, ct.currency, ct.deadline,
          json.dumps(ct.deliverables_json), ct.extraction_confidence,
-         ct.match_confidence, ct.match_method, ct.match_reason),
+         ct.match_confidence, ct.match_method, ct.match_reason,
+         json.dumps(getattr(ct, "_extracted", {}) or {})),
     )
 
 
@@ -139,10 +143,12 @@ def insert_payout(conn, py) -> None:
 
 def insert_deliverable(conn, dv) -> None:
     conn.execute(
-        "INSERT OR REPLACE INTO deliverables VALUES (?,?,?,?,?,?,?,?,?,?)",
+        "INSERT OR REPLACE INTO deliverables VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
         (dv.deliverable_id, dv.campaign_id, dv.creator_id, dv.content_id,
          dv.platform, dv.content_type, int(dv.required), dv.published_at,
-         dv.approval_status, dv.source_file),
+         dv.approval_status, dv.source_file,
+         getattr(dv, "match_confidence", 0.0), getattr(dv, "match_method", ""),
+         getattr(dv, "match_reason", "")),
     )
 
 

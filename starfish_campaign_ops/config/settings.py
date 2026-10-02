@@ -34,13 +34,17 @@ def _f(name: str, default: float) -> float:
 class Settings:
     # ---- modes -------------------------------------------------------
     mode: str = os.getenv("STARFISH_MODE", "demo")            # demo | ai
-    qwen_mode: str = os.getenv("QWEN_MODE", "")               # "" | ollama | openai
+    qwen_mode: str = os.getenv("QWEN_MODE", "")               # "" | ollama | openai | gemini
 
     # ---- Qwen / OpenAI-compatible endpoint ---------------------------
     ollama_base_url: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     qwen_model: str = os.getenv("QWEN_MODEL", "qwen3-coder")
     openai_base_url: str = os.getenv("OPENAI_BASE_URL", "")
     openai_api_key: str = field(default_factory=lambda: os.getenv("OPENAI_API_KEY", ""), repr=False)
+
+    # ---- Google Gemini (OpenAI-compatible endpoint) -------------------
+    gemini_api_key: str = field(default_factory=lambda: os.getenv("GEMINI_API_KEY", ""), repr=False)
+    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 
     # ---- matching thresholds (deterministic) -------------------------
     auto_accept: float = _f("MATCH_AUTO_ACCEPT", 0.85)
@@ -59,7 +63,15 @@ class Settings:
 
     @property
     def ai_enabled(self) -> bool:
-        return self.mode == "ai" and self.qwen_mode in ("ollama", "openai")
+        if self.mode != "ai":
+            return False
+        if self.qwen_mode == "ollama":
+            return True
+        if self.qwen_mode == "openai":
+            return bool(self.openai_base_url)
+        if self.qwen_mode == "gemini":
+            return bool(self.gemini_api_key)
+        return False
 
 
 settings = Settings()

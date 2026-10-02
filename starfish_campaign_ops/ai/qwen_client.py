@@ -19,13 +19,17 @@ class QwenError(Exception):
     pass
 
 
-def _post(url: str, payload: dict, timeout: int = 120) -> dict:
+def _post(url: str, payload: dict, timeout: int = 120, api_key: str | None = None) -> dict:
     data = json.dumps(payload).encode()
     req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
-    if settings.openai_api_key and "localhost" not in url and "127.0.0.1" not in url:
-        req.add_header("Authorization", f"Bearer {settings.openai_api_key}")
+    key = api_key if api_key is not None else settings.openai_api_key
+    if key and "localhost" not in url and "127.0.0.1" not in url:
+        req.add_header("Authorization", f"Bearer {key}")
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read().decode())
+
+
+GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
 
 
 def is_available() -> bool:
@@ -37,6 +41,8 @@ def is_available() -> bool:
             return True
         except Exception:
             return False
+    if settings.qwen_mode == "gemini":
+        return bool(settings.gemini_api_key)
     return bool(settings.openai_base_url)
 
 
@@ -66,6 +72,17 @@ def complete_json(system: str, user: str) -> dict | None:
                 "temperature": 0,
             }
             out = _post(settings.openai_base_url.rstrip("/") + "/chat/completions", payload)
+            text = out["choices"][0]["message"]["content"]
+        elif settings.qwen_mode == "gemini":
+            # Gemini exposes an OpenAI-compatible chat-completions endpoint.
+            payload = {
+                "model": settings.gemini_model,
+                "messages": [{"role": "system", "content": system},
+                             {"role": "user", "content": user}],
+                "temperature": 0,
+            }
+            out = _post(GEMINI_BASE_URL + "/chat/completions", payload,
+                        api_key=settings.gemini_api_key)
             text = out["choices"][0]["message"]["content"]
         else:
             return None

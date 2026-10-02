@@ -17,3 +17,6 @@ class Deliverable(Strict):
     published_at: Optional[str] = None
     approval_status: str = "pending"   # approved | pending | rejected | draft
     source_file: str = ""
+    match_confidence: float = 0.0
+    match_method: str = ""
+    match_reason: str = ""
