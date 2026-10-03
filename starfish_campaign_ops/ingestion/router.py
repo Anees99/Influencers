@@ -8,6 +8,9 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 
+import csv
+import itertools
+
 from ingestion import csv as csv_ing
 from ingestion import excel as excel_ing
 from ingestion import pdf as pdf_ing
@@ -81,6 +84,14 @@ def _ftype(filename: str, blob: bytes) -> str:
 
 # ------------------------------------------------------------------ routers
 
+_id_seq = itertools.count(1)
+
+
+def _rid(prefix: str) -> str:
+    """Globally unique record id (per-file counters collide across files)."""
+    return f"{prefix}-{next(_id_seq):05d}"
+
+
 def process_file(filename: str, blob: bytes, category: str,
                  campaign_id: str = "CMP-RAMADAN-26",
                  sidecar: dict | None = None) -> FileResult:
@@ -147,7 +158,10 @@ def _route_contract(res: FileResult, blob: bytes, campaign_id: str) -> None:
             raw = {"creator_name": creator_name, "instagram_handle": handle,
                    "campaign_name": fields["campaign_name"], "fee": fee,
                    "currency": cur or "USD", "deadline": deadline,
-                   "deliverables": deliv, "payment_terms": fields["payment_terms"],
+                   # ContractExtraction.deliverables is list[str]; the typed
+                   # [{type,count}] structure is kept on the Contract record.
+                   "deliverables": [f"{d['count']} {d['type']}" for d in deliv],
+                   "payment_terms": fields["payment_terms"],
                    "commission": parse_amount(fields["commission_raw"])[0],
                    "bonus": parse_amount(fields["bonus_raw"])[0],
                    "warnings": extraction_warns, "confidence": conf,
@@ -157,7 +171,7 @@ def _route_contract(res: FileResult, blob: bytes, campaign_id: str) -> None:
             ext = validate_contract_payload(raw)
             res.warnings.extend(ext.warnings)
             res.contracts.append(Contract(
-                contract_id=f"CT-{idx:03d}", campaign_id=campaign_id,
+                contract_id=_rid("CT"), campaign_id=campaign_id,
                 source_file=res.filename, source_page=ext.source.page if ext.source else None,
                 agreed_fee=ext.fee, currency=ext.currency, deadline=ext.deadline,
                 deliverables_json=_deliv_dicts(ext),
@@ -226,7 +240,7 @@ def _route_invoice(res: FileResult, blob: bytes, campaign_id: str) -> None:
             ext = validate_invoice_payload(raw)
             res.warnings.extend(ext.warnings)
             res.invoices.append(Invoice(
-                invoice_id=f"IV-{idx:03d}",
+                invoice_id=_rid("IV"),
                 invoice_number=ext.invoice_number or f"AUTO-{idx:03d}",
                 campaign_id=campaign_id, source_file=res.filename,
                 source_page=row["_page"], amount=ext.amount, currency=ext.currency,
@@ -243,7 +257,7 @@ def _route_invoice(res: FileResult, blob: bytes, campaign_id: str) -> None:
                 res.warnings.append(f"row {idx}: missing invoice number or amount - skipped")
                 continue
             res.invoices.append(Invoice(
-                invoice_id=f"IV-{idx:03d}", invoice_number=str(num),
+                invoice_id=_rid("IV"), invoice_number=str(num),
                 campaign_id=campaign_id, source_file=res.filename, amount=amount,
                 currency=cur or row.get("currency") or "USD",
                 invoice_date=parse_date_any(row.get("invoice_date"))[1],
@@ -280,7 +294,7 @@ def _route_analytics(res: FileResult, blob: bytes, campaign_id: str) -> None:
             res.warnings.append(f"row {idx}: no content id - skipped")
             continue
         rec = AnalyticsRecord(
-            analytics_id=f"AN-{idx:05d}", campaign_id=campaign_id,
+            analytics_id=_rid("AN"), campaign_id=campaign_id,
             creator_raw=str(row.get("creator") or ""),
             handle_raw=row.get("handle"), content_id=str(cid),
             platform=normalize_platform(row.get("platform") or ""),

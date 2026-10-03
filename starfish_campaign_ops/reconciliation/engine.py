@@ -9,7 +9,9 @@ the ai/ package and only ever annotates results produced here.
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from config.settings import settings
 from ingestion.router import FileResult, process_file
@@ -46,6 +48,7 @@ class PipelineResult:
     analytics: list = field(default_factory=list)
     exceptions: list = field(default_factory=list)
     pending_matches: list[PendingMatch] = field(default_factory=list)
+    brief: dict | None = None
     financial_rows: list[dict] = field(default_factory=list)
     deliverable_rows: list[dict] = field(default_factory=list)
     content_metrics: list[dict] = field(default_factory=list)
@@ -79,14 +82,32 @@ class ReconciliationEngine:
     # ---------------------------------------------------------- ingestion
     def ingest(self, files: list[tuple[str, bytes, str]],
                sidecars: dict[str, dict] | None = None) -> "ReconciliationEngine":
-        """files: [(filename, blob, category)]; auto-guesses category when blank."""
-        sidecars = sidecars or {}
+        """files: [(filename, blob, category)]; auto-guesses category when blank.
+
+        Screenshots may carry their (filename, payload) tuple in `sidecars`;
+        when absent we look for a same-named .json next to the file on disk.
+        """
+        sidecars = dict(sidecars or {})
         cid = self.campaign.campaign_id if self.campaign else ""
+        # process campaign brief first so its metadata is available to the UI
+        order = {"Campaign Brief": 0}
+        files = sorted(files, key=lambda f: order.get(f[2], 1))
+        from ingestion.router import guess_category
         for filename, blob, category in files:
-            cat = category or "Contract"
+            cat = category or guess_category(filename, "") or "Contract"
+            if cat == "Screenshot" and filename not in sidecars:
+                stem = Path(filename).stem.lower()
+                demo_dir = settings.demo_data_dir / "screenshots"
+                if demo_dir.is_dir():
+                    for cand in demo_dir.glob("*.json"):
+                        if cand.stem.lower() == stem:
+                            sidecars[filename] = json.loads(cand.read_text())
+                            break
             fr = process_file(filename, blob, cat, campaign_id=cid,
                               sidecar=sidecars.get(filename))
             self.result.file_results.append(fr)
+            if fr.brief is not None:
+                self.result.brief = fr.brief
             self.result.contracts.extend(fr.contracts)
             self.result.invoices.extend(fr.invoices)
             self.result.payouts.extend(fr.payouts)
@@ -136,7 +157,18 @@ class ReconciliationEngine:
         for iv in self.result.invoices:
             self._bind(iv, "invoice")
         for py in self.result.payouts:
-            py_decision = self.registry.resolve(py.creator_raw or py.invoice_number or "")
+            # identity resolution order: the name in the payment feed first,
+            # then fall back to the invoice number (exact financial link).
+            py_decision = self.registry.resolve(py.creator_raw or "")
+            if not py_decision.creator_id and py.invoice_number:
+                inv_match = next((iv for iv in self.result.invoices
+                                  if iv.invoice_number == py.invoice_number), None)
+                if inv_match is not None and getattr(inv_match, "creator_id", None):
+                    py.creator_id = inv_match.creator_id
+                    py.match_confidence = 1.0
+                    py.match_method = "invoice_number"
+                    py.match_reason = f"payout references {py.invoice_number}"
+                    continue
             py.match_confidence = py_decision.score
             py.match_method = py_decision.method
             py.match_reason = py_decision.reason
@@ -227,8 +259,12 @@ class ReconciliationEngine:
             else:
                 name = self.result.creators[pm.suggested_id].canonical_name \
                     if pm.suggested_id in self.result.creators else pm.suggested_id
+                # short-form/alias names that fuzzy-match well are a LOW
+                # housekeeping flag; genuinely ambiguous identities go to
+                # human review at MEDIUM severity.
+                etype = "NAME_MISMATCH" if pm.score >= 0.80 else "MATCH_REVIEW"
                 ex.append(make(
-                    "MATCH_REVIEW",
+                    etype,
                     f"'{pm.raw_value}' tentatively linked to {name} at "
                     f"{pm.score:.0%} confidence - awaiting human review.",
                     creator_id=pm.suggested_id,
