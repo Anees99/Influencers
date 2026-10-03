@@ -59,9 +59,14 @@ def reconcile_financials(contracts: list[Contract], invoices: list[Invoice],
     inv_by_num = {}
     for iv in invoices:
         inv_by_num.setdefault(iv.invoice_number, iv)
+
+    def _paid_status(py) -> bool:
+        """A zero-amount row is a placeholder (e.g. a pending line), not money."""
+        return py.status.lower() in ("paid", "completed", "sent") and (py.amount or 0) > 0
+
     paid_by_creator: dict[str, float] = {}
     for py in payouts:
-        if py.status.lower() not in ("paid", "completed", "sent"):
+        if not _paid_status(py):
             continue
         target = inv_by_num.get(py.invoice_number or "")
         cid = (target.creator_id if target else py.creator_id)

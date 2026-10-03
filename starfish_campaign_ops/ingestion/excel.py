@@ -5,7 +5,7 @@ import io
 
 import pandas as pd
 
-from ingestion.csv import COLUMN_ALIASES
+from ingestion.csv_ingest import COLUMN_ALIASES
 
 
 class ExcelError(Exception):
