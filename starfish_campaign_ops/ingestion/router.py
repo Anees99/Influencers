@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 import csv
 import itertools
 
-from ingestion import csv as csv_ing
+from ingestion import csv_ingest as csv_ing
 from ingestion import excel as excel_ing
 from ingestion import pdf as pdf_ing
 from ingestion.normalization import (normalize_platform, parse_amount,

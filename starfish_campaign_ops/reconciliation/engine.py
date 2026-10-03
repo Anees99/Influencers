@@ -16,7 +16,7 @@ from pathlib import Path
 from config.settings import settings
 from ingestion.router import FileResult, process_file
 from matching.content_matching import match_content
-from matching.creator_matching import CreatorRegistry
+from matching.creator_matching import CreatorRegistry, normalize_handle
 from reconciliation.analytics import engagement_rate, latest_snapshots, reconcile_analytics
 from reconciliation.deliverables import reconcile_deliverables
 from reconciliation.exceptions import make, reset_counter
@@ -174,13 +174,42 @@ class ReconciliationEngine:
             py.match_reason = py_decision.reason
             if py_decision.creator_id and not py_decision.needs_review:
                 py.creator_id = py_decision.creator_id
-            else:
+            elif py_decision.creator_id:
+                # fuzzy candidate exists - never silent merge; queue for review
                 self.result.pending_matches.append(PendingMatch(
                     raw_value=py.creator_raw or "(blank)", source_file=py.source_file,
                     record_kind="payout", record_id=py.payout_id,
                     suggested_id=py_decision.creator_id, score=py_decision.score,
                     reason=py_decision.reason))
-                py.creator_id = py_decision.creator_id if py_decision.creator_id else None
+                py.creator_id = py_decision.creator_id
+            else:
+                # no creator matched by name. If the payout references an invoice
+                # that exists, this is a NAME MISMATCH (financial link is exact);
+                # referencing an unknown invoice means we genuinely don't know who
+                # was paid -> UNKNOWN CREATOR.
+                inv_match = next((iv for iv in self.result.invoices
+                                  if iv.invoice_number == (py.invoice_number or "")),
+                                 None)
+                if inv_match is not None:
+                    py.creator_id = inv_match.creator_id
+                    py.match_method = "invoice_number"
+                    py.match_reason = (f"name '{py.creator_raw}' unmatched; linked via "
+                                       f"{py.invoice_number}")
+                    self.result.pending_matches.append(PendingMatch(
+                        raw_value=py.creator_raw or "(blank)", source_file=py.source_file,
+                        record_kind="payout", record_id=py.payout_id,
+                        suggested_id=None, score=0.0,
+                        reason=f"'{py.creator_raw}' does not match any roster name; "
+                               f"invoice {py.invoice_number} links to "
+                               f"{self.result.creator_name(inv_match.creator_id)}"))
+                else:
+                    py.creator_id = None
+                    self.result.pending_matches.append(PendingMatch(
+                        raw_value=py.creator_raw or "(blank)", source_file=py.source_file,
+                        record_kind="payout", record_id=py.payout_id,
+                        suggested_id=None, score=0.0,
+                        reason=f"'{py.creator_raw}' unmatched and invoice "
+                               f"{py.invoice_number} not found"))
         for dv in self.result.deliverables:
             self._bind(dv, "deliverable")
         for ar in self.result.analytics:
@@ -195,12 +224,21 @@ class ReconciliationEngine:
                     record_id=ar.analytics_id, suggested_id=dec.creator_id,
                     score=dec.score, reason=dec.reason))
             else:
-                ar.creator_id = None
+                # No name matched. A handle is a strong platform-native signal:
+                # link analytics by handle when one exists, but queue the row for
+                # human review (never silent merge). No handle match at all ->
+                # UNKNOWN CREATOR.
+                hk = normalize_handle(ar.handle_raw or "")
+                cand = self.registry.by_handle.get(hk) if hk else None
+                ar.creator_id = cand
                 if q:
                     self.result.pending_matches.append(PendingMatch(
                         raw_value=q, source_file=ar.source_file, record_kind="analytics",
-                        record_id=ar.analytics_id, suggested_id=None,
-                        score=dec.score, reason=dec.reason))
+                        record_id=ar.analytics_id, suggested_id=cand,
+                        score=(0.6 if cand else dec.score),
+                        reason=(f"handle {ar.handle_raw} found on no roster entry; "
+                                f"'{ar.creator_raw}' unmatched")
+                               if cand else dec.reason))
         self.result.steps_done.append("Entity matching complete")
         return self
 
