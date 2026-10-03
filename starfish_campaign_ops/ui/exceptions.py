@@ -14,7 +14,7 @@ STATUS_OPTIONS = ["OPEN", "IN_REVIEW", "RESOLVED", "IGNORED"]
 
 def render(conn):
     st.title("⚠️ Exception Queue")
-    if needs_data():
+    if needs_data(conn):
         empty_state("No exceptions — load a campaign first.")
         return
 

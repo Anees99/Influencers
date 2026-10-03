@@ -13,7 +13,7 @@ def render(conn):
     st.title("📁 Campaign Files")
 
     # --------------------------------------------------- processed ledger
-    if needs_data():
+    if needs_data(conn):
         empty_state("No files processed yet.")
     else:
         rows = conn.execute(

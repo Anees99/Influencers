@@ -10,7 +10,7 @@ from ui.common import badge, empty_state, fmt_money, kpi_row, needs_data
 
 def render(conn):
     st.title("💵 Financial Reconciliation")
-    if needs_data():
+    if needs_data(conn):
         empty_state("No financial records loaded yet.")
         return
 

@@ -10,7 +10,7 @@ from ui.common import badge, empty_state, needs_data
 
 def render(conn):
     st.title("🔁 Reconciliation")
-    if needs_data():
+    if needs_data(conn):
         empty_state("No reconciliation data yet.")
         return
 
