@@ -36,7 +36,6 @@ def make(exception_type: str, description: str, *, campaign_id: str = "",
     return ExceptionItem(
         exception_id=_stable_id(exception_type, creator_id, content_id, description),
         campaign_id=campaign_id, creator_id=creator_id, content_id=content_id,
-        exception_type=exception_type,
         severity=SEVERITY.get(exception_type, "LOW"),
         description=description, expected_value=expected, actual_value=actual,
         evidence=evidence or {}, source_files=source_files or [])
