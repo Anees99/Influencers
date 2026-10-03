@@ -39,7 +39,10 @@ def _category_for(path: Path) -> str | None:
     if path.parent.name == "invoices":
         return "Invoice"
     if path.parent.name == "screenshots":
-        return None  # skip sidecars; png handled below
+        # PNG/JPG screenshots are ingested; .json sidecars attach to them.
+        if path.suffix.lower() in (".png", ".jpg", ".jpeg"):
+            return "Screenshot"
+        return None
     return guess_category(path.name, path.suffix.lstrip("."))
 
 
