@@ -143,7 +143,7 @@ def insert_payout(conn, py) -> None:
 
 def insert_deliverable(conn, dv) -> None:
     conn.execute(
-        "INSERT OR REPLACE INTO deliverables VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        "INSERT OR REPLACE INTO deliverables VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (dv.deliverable_id, dv.campaign_id, dv.creator_id, dv.content_id,
          dv.platform, dv.content_type, int(dv.required), dv.published_at,
          dv.approval_status, dv.source_file,
@@ -154,8 +154,11 @@ def insert_deliverable(conn, dv) -> None:
 
 def insert_analytics(conn, ar) -> None:
     conn.execute(
-        "INSERT OR REPLACE INTO analytics_records VALUES (?,?,?,?,?,?,?,?,?,?,?,"
-        "?,?,?,?,?,?,?,?,?,?,?,?)",
+        "INSERT OR REPLACE INTO analytics_records (analytics_id, campaign_id,"
+        " creator_id, content_id, platform, content_type, publish_date, views,"
+        " reach, impressions, likes, comments, saves, shares, watch_time,"
+        " captured_at, source_file, source_type, confidence, needs_verification)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (ar.analytics_id, ar.campaign_id, ar.creator_id, ar.content_id,
          ar.platform, ar.content_type, ar.publish_date, ar.views, ar.reach,
          ar.impressions, ar.likes, ar.comments, ar.saves, ar.shares,
@@ -202,6 +205,7 @@ def record_upload(conn, filename: str, category: str, file_type: str,
 
 def persist_result(conn, result) -> None:
     """Persist a full PipelineResult."""
+    init_db(conn)
     reset_data(conn)
     if result.campaign:
         upsert_campaign(conn, result.campaign)

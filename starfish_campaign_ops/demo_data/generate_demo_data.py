@@ -179,6 +179,8 @@ def make_payouts() -> None:
                      "USD", "2026-03-28", status])
     # UNKNOWN_CREATOR: a payout line for someone not on the roster
     rows.append(["PAY-9099", "Ziad Marzouk", "INV-1099", 400, "USD", "2026-03-29", "Paid"])
+    # NAME_MISMATCH (LOW): short-form name that fuzzy-matches Hana Mostafa
+    rows.append(["PAY-9098", "Hana M.", "INV-1046", 0, "USD", "", "Pending"])
     for r in rows:
         ws.append(r)
     wb.save(BASE / "payouts.xlsx")
@@ -254,6 +256,8 @@ def make_deliverables() -> None:
         creator = next(c for c in CREATORS if c[0] == cid)
         for content_id, plat, ctype, pub, appr in items:
             n += 1
+            # required-but-unpublished rows stay in the tracker (blank
+            # published_at) so MISSING_DELIVERABLE can be detected.
             ws.append([f"DV-{n:04d}", creator[1], content_id, plat, ctype,
                        "TRUE", pub or "", appr])
     wb.save(BASE / "deliverables.xlsx")

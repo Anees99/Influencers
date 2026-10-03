@@ -157,7 +157,18 @@ class ReconciliationEngine:
         for iv in self.result.invoices:
             self._bind(iv, "invoice")
         for py in self.result.payouts:
-            py_decision = self.registry.resolve(py.creator_raw or py.invoice_number or "")
+            # identity resolution order: the name in the payment feed first,
+            # then fall back to the invoice number (exact financial link).
+            py_decision = self.registry.resolve(py.creator_raw or "")
+            if not py_decision.creator_id and py.invoice_number:
+                inv_match = next((iv for iv in self.result.invoices
+                                  if iv.invoice_number == py.invoice_number), None)
+                if inv_match is not None and getattr(inv_match, "creator_id", None):
+                    py.creator_id = inv_match.creator_id
+                    py.match_confidence = 1.0
+                    py.match_method = "invoice_number"
+                    py.match_reason = f"payout references {py.invoice_number}"
+                    continue
             py.match_confidence = py_decision.score
             py.match_method = py_decision.method
             py.match_reason = py_decision.reason
@@ -248,8 +259,12 @@ class ReconciliationEngine:
             else:
                 name = self.result.creators[pm.suggested_id].canonical_name \
                     if pm.suggested_id in self.result.creators else pm.suggested_id
+                # short-form/alias names that fuzzy-match well are a LOW
+                # housekeeping flag; genuinely ambiguous identities go to
+                # human review at MEDIUM severity.
+                etype = "NAME_MISMATCH" if pm.score >= 0.80 else "MATCH_REVIEW"
                 ex.append(make(
-                    "MATCH_REVIEW",
+                    etype,
                     f"'{pm.raw_value}' tentatively linked to {name} at "
                     f"{pm.score:.0%} confidence - awaiting human review.",
                     creator_id=pm.suggested_id,
