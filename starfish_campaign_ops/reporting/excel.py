@@ -54,7 +54,7 @@ def export_excel(conn: sqlite3.Connection, path: Path) -> Path:
                ("Open exceptions", t["open_exceptions"])]
     _sheet(wb, "Campaign Summary", ["Metric", "Value"], summary)
 
-    names = {r["creator_id"]: r for r in conn.execute("SELECT * FROM creators")}
+    names = {r["creator_id"]: dict(r) for r in conn.execute("SELECT * FROM creators")}
     creator_rows = []
     for cid, n in sorted(names.items()):
         perf = next((p for p in metrics.creator_performance(conn)
