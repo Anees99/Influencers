@@ -11,7 +11,7 @@ from ui.common import empty_state, fmt_compact, kpi_row, needs_data
 
 def render(conn):
     st.title("📈 Campaign Performance")
-    if needs_data():
+    if needs_data(conn):
         empty_state("No analytics loaded yet.")
         return
 

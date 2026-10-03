@@ -11,7 +11,7 @@ from ui.common import empty_state, needs_data
 
 def render(conn):
     st.title("📄 Client Reports")
-    if needs_data():
+    if needs_data(conn):
         empty_state("No campaign data to report on yet.")
         return
 
