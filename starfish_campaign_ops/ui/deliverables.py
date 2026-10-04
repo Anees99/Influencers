@@ -10,7 +10,7 @@ from ui.common import empty_state, needs_data
 
 def render(conn):
     st.title("📦 Deliverable Reconciliation")
-    if needs_data():
+    if needs_data(conn):
         empty_state("No deliverables loaded yet.")
         return
 

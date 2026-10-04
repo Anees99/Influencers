@@ -302,7 +302,22 @@ def make_screenshot() -> None:
 
 
 def make_corrupt_file() -> None:
-    (BASE / "corrupt_contract.pdf").write_bytes(b"%PDF-1.4\nthis is not a real pdf body\n%%EOF")
+    """A real, openable PDF that contains no recoverable contract fields.
+
+    It opens fine in any PDF viewer (so it never looks broken in the demo)
+    but the deterministic extractor finds no creator/fee/deliverables, so
+    the pipeline flags it as a per-file ERROR without crashing the batch.
+    """
+    import fitz  # PyMuPDF
+
+    doc = fitz.open()
+    page = doc.new_page()
+    page.insert_text((72, 90), "DRAFT SCAN - UNREADABLE DOCUMENT", fontsize=14)
+    page.insert_text((72, 120), "This file was exported from the old CRM and lost its")
+    page.insert_text((72, 138), "content during migration. No creator, fee or deliverable")
+    page.insert_text((72, 156), "fields can be recovered from this document.")
+    doc.save(str(BASE / "corrupt_contract.pdf"))
+    doc.close()
 
 
 if __name__ == "__main__":

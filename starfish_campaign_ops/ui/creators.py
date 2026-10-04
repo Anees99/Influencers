@@ -10,7 +10,7 @@ from ui.common import badge, empty_state, fmt_money, needs_data
 
 def render(conn):
     st.title("👥 Creators")
-    if needs_data():
+    if needs_data(conn):
         empty_state("No creators loaded yet.")
         return
 
