@@ -34,7 +34,7 @@ def _f(name: str, default: float) -> float:
 class Settings:
     # ---- modes -------------------------------------------------------
     mode: str = os.getenv("STARFISH_MODE", "demo")            # demo | ai
-    qwen_mode: str = os.getenv("QWEN_MODE", "")               # "" | ollama | openai | gemini
+    qwen_mode: str = os.getenv("QWEN_MODE", "")               # "" | ollama | openai | gemini | groq
 
     # ---- Qwen / OpenAI-compatible endpoint ---------------------------
     ollama_base_url: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
@@ -45,6 +45,10 @@ class Settings:
     # ---- Google Gemini (OpenAI-compatible endpoint) -------------------
     gemini_api_key: str = field(default_factory=lambda: os.getenv("GEMINI_API_KEY", ""), repr=False)
     gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+
+    # ---- Groq (OpenAI-compatible endpoint) ----------------------------
+    groq_api_key: str = field(default_factory=lambda: os.getenv("GROQ_API_KEY", ""), repr=False)
+    groq_model: str = os.getenv("GROQ_MODEL", "gpt-oss-120b")
 
     # ---- matching thresholds (deterministic) -------------------------
     auto_accept: float = _f("MATCH_AUTO_ACCEPT", 0.85)
@@ -71,6 +75,8 @@ class Settings:
             return bool(self.openai_base_url)
         if self.qwen_mode == "gemini":
             return bool(self.gemini_api_key)
+        if self.qwen_mode == "groq":
+            return bool(self.groq_api_key)
         return False
 
 

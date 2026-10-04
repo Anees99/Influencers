@@ -10,6 +10,7 @@ here; no LLM is required for any number shown on screen.
 """
 from __future__ import annotations
 
+import os
 import sys
 import traceback
 from pathlib import Path
@@ -149,6 +150,56 @@ with st.sidebar:
     )
     st.session_state["dataset_key"] = _keys[
         [DATASETS[k].label for k in _keys].index(sel_label)]
+    st.divider()
+
+    # ---- AI provider settings (Groq — gpt-oss-120b) -----------------------
+    with st.expander("🤖 AI Settings (Groq)"):
+        current_groq_key = os.getenv("GROQ_API_KEY", "")
+        groq_key_val = st.text_input(
+            "Groq API Key", value=current_groq_key, type="password",
+            placeholder="gsk_...",
+            help="Get your key at https://console.groq.com/keys",
+        )
+        groq_model_val = st.text_input(
+            "Groq model", value=os.getenv("GROQ_MODEL", "gpt-oss-120b"),
+            help="e.g. gpt-oss-120b or gpt-oss-20b",
+        )
+        col_k1, col_k2 = st.columns(2)
+        with col_k1:
+            if st.button("Save Key", use_container_width=True, key="save_groq"):
+                if groq_key_val.strip():
+                    os.environ["GROQ_API_KEY"] = groq_key_val.strip()
+                    os.environ["GROQ_MODEL"] = groq_model_val.strip() or "gpt-oss-120b"
+                    os.environ["STARFISH_MODE"] = "ai"
+                    os.environ["QWEN_MODE"] = "groq"
+                    env_file = BASE_DIR / ".env"
+                    env_file.write_text(
+                        f"GROQ_API_KEY={groq_key_val.strip()}\n"
+                        f"GROQ_MODEL={os.environ['GROQ_MODEL']}\n"
+                        "STARFISH_MODE=ai\nQWEN_MODE=groq\n",
+                        encoding="utf-8",
+                    )
+                    st.success("Saved! Restart Streamlit for it to take effect.")
+                    st.rerun()
+                else:
+                    os.environ.pop("GROQ_API_KEY", None)
+                    st.info("Key cleared.")
+                    st.rerun()
+        with col_k2:
+            if st.button("Test AI", use_container_width=True, key="test_groq"):
+                if settings.ai_enabled:
+                    from ai.qwen_client import complete_json
+                    res = complete_json("System", 'Respond: {"status":"ok"}')
+                    st.success("✅ OK" if res else "❌ Failed")
+                else:
+                    st.warning("No key set")
+
+        if settings.ai_enabled:
+            st.markdown(f"🟢 **Active** `{settings.qwen_mode}` → "
+                        f"`{settings.groq_model if settings.qwen_mode == 'groq' else ''}`")
+        else:
+            st.markdown("⚪ **Inactive** — Demo mode")
+
     st.divider()
     ai_on = settings.ai_enabled
     if ai_on:

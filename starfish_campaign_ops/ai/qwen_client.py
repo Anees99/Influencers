@@ -30,6 +30,7 @@ def _post(url: str, payload: dict, timeout: int = 120, api_key: str | None = Non
 
 
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 
 
 def is_available() -> bool:
@@ -43,6 +44,8 @@ def is_available() -> bool:
             return False
     if settings.qwen_mode == "gemini":
         return bool(settings.gemini_api_key)
+    if settings.qwen_mode == "groq":
+        return bool(settings.groq_api_key)
     return bool(settings.openai_base_url)
 
 
@@ -83,6 +86,18 @@ def complete_json(system: str, user: str) -> dict | None:
             }
             out = _post(GEMINI_BASE_URL + "/chat/completions", payload,
                         api_key=settings.gemini_api_key)
+            text = out["choices"][0]["message"]["content"]
+        elif settings.qwen_mode == "groq":
+            # Groq exposes an OpenAI-compatible chat-completions endpoint.
+            # Default model: gpt-oss-120b (override with GROQ_MODEL env var).
+            payload = {
+                "model": settings.groq_model,
+                "messages": [{"role": "system", "content": system},
+                             {"role": "user", "content": user}],
+                "temperature": 0,
+            }
+            out = _post(GROQ_BASE_URL + "/chat/completions", payload,
+                        api_key=settings.groq_api_key)
             text = out["choices"][0]["message"]["content"]
         else:
             return None
