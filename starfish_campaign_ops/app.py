@@ -103,10 +103,13 @@ def _has_data(conn) -> bool:
 
 
 def load_demo():
-    """Run the full deterministic pipeline over demo_data/ and persist it."""
+    """Run the full deterministic pipeline over the selected dataset folder
+    and persist it (wipes + reloads the DB)."""
     from demo_loader import load_demo as _load
 
-    res = _load()               # persists to settings.db_path (wipes + reloads)
+    from datasets import DEFAULT_DATASET
+    key = st.session_state.get("dataset_key", DEFAULT_DATASET)
+    res = _load(dataset=key)
     _db_conn.clear()            # drop cached connection so UI reopens fresh DB
     return res
 
@@ -132,6 +135,20 @@ with st.sidebar:
     st.markdown("## ⭐ Starfish Ops")
     st.caption("Campaign operations & reconciliation automation")
     choice = st.radio("Navigation", [name for name, _ in PAGES], label_visibility="collapsed")
+
+    # ---- dataset picker (input_data/, input_data2/, ...) ------------------
+    from datasets import DATASETS
+
+    _keys = list(DATASETS.keys())
+    if "dataset_key" not in st.session_state:
+        st.session_state["dataset_key"] = _keys[0]
+    sel_label = st.selectbox(
+        "Demo dataset", [DATASETS[k].label for k in _keys],
+        index=_keys.index(st.session_state.get("dataset_key", _keys[0])),
+        key="dataset_select",
+    )
+    st.session_state["dataset_key"] = _keys[
+        [DATASETS[k].label for k in _keys].index(sel_label)]
     st.divider()
     ai_on = settings.ai_enabled
     if ai_on:

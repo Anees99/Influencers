@@ -1,36 +1,38 @@
-"""One-click demo loader: collect every file in demo_data/ and run the full
-deterministic pipeline, persisting the result to SQLite.
+"""One-click demo loader: collect every file in a dataset folder (input_data/,
+input_data2/, ... or legacy demo_data/) and run the full deterministic
+pipeline, persisting the result to SQLite.
 
 Used by the Streamlit UI ("Load Demo Campaign") and by tests. No LLM calls.
 """
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from config.settings import settings
 from database import db
+from datasets import DEFAULT_DATASET, DATASETS, brief_overrides, get_dataset
 from ingestion.router import guess_category
 from reconciliation.engine import build_result
 from schemas.campaign import Campaign
 from schemas.creator import Creator
 
-CAMPAIGN_ID = "CMP-RAMADAN-26"
+CAMPAIGN_ID = DATASETS[DEFAULT_DATASET].campaign_id
 
-# canonical roster (same people the generator creates files for)
-ROSTER = [
-    Creator(creator_id="ST-001", canonical_name="Sara Ahmed", instagram_handle="@sara.ahmed"),
-    Creator(creator_id="ST-002", canonical_name="Omar Ali", instagram_handle="@omar.ali"),
-    Creator(creator_id="ST-003", canonical_name="Lina Hassan", instagram_handle="@lina.hassan"),
-    Creator(creator_id="ST-004", canonical_name="Youssef Karim", instagram_handle="@youssefk"),
-    Creator(creator_id="ST-005", canonical_name="Nour El-Sayed", instagram_handle="@nour.elsayed"),
-    Creator(creator_id="ST-006", canonical_name="Maya Farouk", instagram_handle="@maya.farouk"),
-    Creator(creator_id="ST-007", canonical_name="Hana Mostafa", instagram_handle="@hana.mostafa"),
-    Creator(creator_id="ST-008", canonical_name="Rana Khalil", instagram_handle="@rana.khalil"),
-    Creator(creator_id="ST-009", canonical_name="Dina Fathy", instagram_handle="@dina.fathy"),
-    Creator(creator_id="ST-010", canonical_name="Salma Adel", instagram_handle="@salma.adel"),
-    Creator(creator_id="ST-011", canonical_name="Aya Rahman", instagram_handle="@aya.rahman"),
-    Creator(creator_id="ST-012", canonical_name="Karim Nasser", instagram_handle="@karim.nasser"),
-]
+# Back-compat: default roster (Ramadan campaign). Prefer load_demo(dataset=...).
+ROSTER = list(DATASETS[DEFAULT_DATASET].roster)
+
+
+def _resolve_base(base: Path | str | None, dataset: str | None) -> tuple[Path, object]:
+    """Map a dataset key / explicit path to (folder, Dataset)."""
+    ds = get_dataset(dataset)
+    if isinstance(base, Path) or (isinstance(base, str) and base):
+        p = Path(base)
+        # legacy callers pass demo_data/ — treat it as the default dataset
+        if p.name == "demo_data":
+            return ds.directory, ds
+        return p, ds
+    return ds.directory, ds
 
 
 def _category_for(path: Path) -> str | None:
@@ -46,9 +48,10 @@ def _category_for(path: Path) -> str | None:
     return guess_category(path.name, path.suffix.lstrip("."))
 
 
-def collect_demo_files(base: Path | None = None) -> tuple[list[tuple[str, bytes, str]], dict]:
-    """Return (files, sidecars) for everything under demo_data/."""
-    base = base or settings.demo_data_dir
+def collect_demo_files(base: Path | None = None,
+                       dataset: str | None = None) -> tuple[list[tuple[str, bytes, str]], dict]:
+    """Return (files, sidecars) for everything in the dataset folder."""
+    base, _ds = _resolve_base(base, dataset)
     files: list[tuple[str, bytes, str]] = []
     sidecars: dict[str, dict] = {}
     for path in sorted(base.rglob("*")):
@@ -64,20 +67,29 @@ def collect_demo_files(base: Path | None = None) -> tuple[list[tuple[str, bytes,
         if cat == "Screenshot":
             side = path.with_suffix(".json")
             if side.exists():
-                import json
                 sidecars[path.name] = json.loads(side.read_text())
     return files, sidecars
 
 
-def load_demo(db_path: Path | str | None = None):
-    """Run the deterministic pipeline over demo_data/ and persist to SQLite."""
-    files, sidecars = collect_demo_files()
+def load_demo(db_path: Path | str | None = None,
+              dataset: str | None = None):
+    """Run the deterministic pipeline over a dataset folder and persist to SQLite.
+
+    `dataset` is a folder key registered in datasets.DATASETS (e.g.
+    "input_data2").  The stored campaign metadata comes from the dataset and
+    is overridden by campaign_brief.xlsx inside the folder when present.
+    """
+    base, ds = _resolve_base(None, dataset)
+    files, sidecars = collect_demo_files(base)
+    meta = {"campaign_id": ds.campaign_id, "client_name": ds.client_name,
+            "campaign_name": ds.campaign_name}
+    meta.update(brief_overrides(base))
     campaign = Campaign(
-        campaign_id=CAMPAIGN_ID, client_name="ABC Beauty",
-        campaign_name="Ramadan Skincare Campaign",
+        campaign_id=meta["campaign_id"], client_name=meta["client_name"],
+        campaign_name=meta["campaign_name"],
         start_date=None, end_date=None, currency="USD",
         platforms=["Instagram", "TikTok"])
-    result = build_result(files, ROSTER, campaign, sidecars)
+    result = build_result(files, list(ds.roster), campaign, sidecars)
     conn = db.connect(db_path or settings.db_path)
     try:
         db.init_db(conn)
