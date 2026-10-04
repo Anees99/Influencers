@@ -60,15 +60,16 @@ def empty_state(message: str) -> None:
     st.caption("Use **Home → Load Demo Campaign** to populate the workspace.")
 
 
-def needs_data() -> bool:
-    conn = st.session_state.get("conn")
+def needs_data(conn=None) -> bool:
+    if conn is None:
+        conn = st.session_state.get("conn")
     if conn is None:
         return True
     try:
         n = conn.execute("SELECT COUNT(*) FROM creators").fetchone()[0]
     except Exception:
         return True
-    return n == 0
+    return int(n) == 0
 
 
 def styled_table(df: pd.DataFrame, use_html_cols: tuple[str, ...] = ()) -> str:

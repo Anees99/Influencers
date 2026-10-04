@@ -11,7 +11,7 @@ from ui.common import empty_state, fmt_compact, fmt_money, kpi_row, needs_data
 
 def render(conn):
     st.title("📊 Operations Dashboard")
-    if needs_data():
+    if needs_data(conn):
         empty_state("No campaign loaded yet.")
         return
 

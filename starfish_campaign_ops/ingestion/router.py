@@ -167,6 +167,14 @@ def _route_contract(res: FileResult, blob: bytes, campaign_id: str) -> None:
                    "warnings": extraction_warns, "confidence": conf,
                    "source": {"source_file": res.filename, "source_type": "pdf",
                               "page": page}}
+            if creator_name is None and fee is None and not deliv:
+                # Nothing recoverable from this page — treat the file as a
+                # per-file ERROR (e.g. corrupt contract) without crashing
+                # the rest of the campaign batch.
+                raise ValueError(
+                    f"{res.filename} (page {page}): no creator, fee or "
+                    "deliverables could be extracted — unreadable or "
+                    "corrupt contract document")
             from ai.contract_extractor import validate_contract_payload
             ext = validate_contract_payload(raw)
             res.warnings.extend(ext.warnings)
