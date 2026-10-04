@@ -58,6 +58,20 @@ _SUMFIT_ROSTER = tuple([
     Creator(creator_id="ST-011", canonical_name="Hany Soliman", instagram_handle="@hany.soliman"),
 ])
 
+_RAMTECH_ROSTER = tuple([
+    Creator(creator_id="ST-001", canonical_name="Karim Fahmy", instagram_handle="@karim.fahmy"),
+    Creator(creator_id="ST-002", canonical_name="Youssef Adel", instagram_handle="@youssef.adel"),
+    Creator(creator_id="ST-003", canonical_name="Laila Mansour", instagram_handle="@laila.m"),
+    Creator(creator_id="ST-004", canonical_name="Hassan Ibrahim", instagram_handle="@hassan.ibrahim"),
+    Creator(creator_id="ST-005", canonical_name="Salma Khaled", instagram_handle="@salma.khaled"),
+    Creator(creator_id="ST-006", canonical_name="Nour Hamdy", instagram_handle="@nour.hamdy"),
+    Creator(creator_id="ST-007", canonical_name="Yara Sameh", instagram_handle="@yara.sameh"),
+    Creator(creator_id="ST-008", canonical_name="Ady Guergues", instagram_handle="@ady.guergues"),
+    Creator(creator_id="ST-009", canonical_name="Mariam Faiez", instagram_handle="@mariam.faiez"),
+    Creator(creator_id="ST-010", canonical_name="Dina Sherif", instagram_handle="@dina.sherif"),
+    Creator(creator_id="ST-011", canonical_name="George Bakhoum", instagram_handle="@george.bakhoum"),
+])
+
 DATASETS: dict[str, Dataset] = {
     "input_data": Dataset(
         key="input_data",
@@ -74,6 +88,14 @@ DATASETS: dict[str, Dataset] = {
         client_name="XYZ Fitness",
         campaign_name="Summer Fitness Campaign",
         roster=_SUMFIT_ROSTER,
+    ),
+    "input_data3": Dataset(
+        key="input_data3",
+        label="Nova Tech — Ramadan Tech Campaign",
+        campaign_id="CMP-RAMTECH-26",
+        client_name="Nova Tech",
+        campaign_name="Ramadan Tech Campaign",
+        roster=_RAMTECH_ROSTER,
     ),
 }
 

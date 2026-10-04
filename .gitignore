@@ -1,6 +1,9 @@
-# Python cache files
+# Python
 __pycache__/
 *.pyc
 
-# Database files
+# Database files (if generated/temporary)
+# Note: starfish.db is modified, likely a local dev database. 
+# If it's intended to be tracked as seed data, remove this line. 
+# Given typical project structures, .db files are often ignored if they contain runtime state.
 *.db
