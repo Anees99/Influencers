@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS file_uploads (
 def connect(db_path: Path | str | None = None) -> sqlite3.Connection:
     p = str(db_path or settings.db_path)
     Path(p).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(p)
+    conn = sqlite3.connect(p, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
