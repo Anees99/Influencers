@@ -100,10 +100,11 @@ def render(conn):
         st.plotly_chart(fig, use_container_width=True)
     with cols[1]:
         st.subheader("Content delivery")
-        fig = px.bar(x=["Required", "Published"],
-                     y=[t["deliverables_required"], t["deliverables_published"]],
-                     labels={"x": "", "y": "Items"}, text="auto",
-                     color=["Required", "Published"],
+        deliv_df = pd.DataFrame({
+            "Stage": ["Required", "Published"],
+            "Items": [t["deliverables_required"], t["deliverables_published"]]})
+        fig = px.bar(deliv_df, x="Stage", y="Items", text="Items",
+                     color="Stage",
                      color_discrete_map={"Required": "#1F6FB2", "Published": "#1e8449"})
         fig.update_layout(showlegend=False, height=240,
                           margin=dict(l=0, r=0, t=10, b=10))
