@@ -22,7 +22,7 @@ def extract_text(blob: bytes) -> list[str]:
     return [page.get_text("text") for page in doc]
 
 
-# ------------------------------------------------------------- field labels
+# ---------------------------------------------------------------- field labels
 _LABELS = {
     "creator": r"Creator\s*:?\s*\n?\s*(.+)",
     "instagram": r"(?:Instagram|Handle)\s*:?\s*\n?\s*(@[\w.\-]+)",
@@ -48,6 +48,18 @@ def _find(text: str, key: str) -> str | None:
     return val or None
 
 
+def _sanitize_creator_name(name: str | None) -> str | None:
+    """Guard against documents where the header ('CREATOR AGREEMENT') sits on
+    the same line as the 'Creator:' label, so the regex captures
+    'AGREEMENT\\nReal Name'. Keep only the plausible name line(s)."""
+    if not name:
+        return None
+    lines = [l.strip() for l in str(name).splitlines() if l.strip()]
+    noise = {"agreement", "creator agreement", "contract", "invoice"}
+    kept = [l for l in lines if l.lower() not in noise]
+    return kept[0] if kept else None
+
+
 def _deliverables_block(text: str) -> str | None:
     m = re.search(r"Deliverables\s*:?\s*\n(.*?)(?:\n\s*\n|Fee\s*:|Payment Terms|Deadline|$)",
                   text, re.IGNORECASE | re.DOTALL)
@@ -57,7 +69,7 @@ def _deliverables_block(text: str) -> str | None:
 def parse_contract_text(text: str) -> dict:
     """Deterministic contract field extraction from raw PDF text."""
     return {
-        "creator_name": _find(text, "creator"),
+        "creator_name": _sanitize_creator_name(_find(text, "creator")),
         "instagram_handle": _find(text, "instagram"),
         "campaign_name": _find(text, "campaign"),
         "fee_raw": _find(text, "fee"),
@@ -72,7 +84,7 @@ def parse_contract_text(text: str) -> dict:
 def parse_invoice_text(text: str) -> dict:
     return {
         "invoice_number": _find(text, "invoice_number"),
-        "creator_name": _find(text, "creator"),
+        "creator_name": _sanitize_creator_name(_find(text, "creator")),
         "instagram_handle": _find(text, "instagram"),
         "campaign_name": _find(text, "campaign"),
         "amount_raw": _find(text, "amount_due"),

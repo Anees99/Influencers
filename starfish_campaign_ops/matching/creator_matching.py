@@ -98,6 +98,15 @@ class CreatorRegistry:
     def known_ids(self) -> list[str]:
         return list(self.order)
 
+    def normalize_key(self, raw: str) -> str:
+        """Normalized name key for a raw string (name or 'Name (@handle)')."""
+        s = str(raw or "").strip()
+        m = re.search(r"@[\w.\-]+", s)
+        if m:
+            s = (re.sub(r"@[\w.\-]+", "", s).strip(" ,();")
+                 or normalize_handle(m.group(0)))
+        return normalize_name(s)
+
     # -- resolution --------------------------------------------------------
     def resolve(self, raw: str) -> MatchDecision:
         """Resolve any string (name, handle, 'Name (@handle)', id) to a creator."""

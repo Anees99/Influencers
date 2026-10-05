@@ -56,6 +56,16 @@ _SUMFIT_ROSTER = tuple([
     Creator(creator_id="ST-009", canonical_name="Sandy Girgis", instagram_handle="@sandy.girgis"),
     Creator(creator_id="ST-010", canonical_name="Reem Helmy", instagram_handle="@reem.helmy"),
     Creator(creator_id="ST-011", canonical_name="Hany Soliman", instagram_handle="@hany.soliman"),
+    # Extra creators whose contracts live in input_data2/contracts but who have
+    # no analytics/payout rows - registered so they never fall into "(unmatched)".
+    Creator(creator_id="ST-012", canonical_name="Salma Adel", instagram_handle="@salma.adel"),
+    Creator(creator_id="ST-013", canonical_name="Youssef Karim", instagram_handle="@youssefk"),
+])
+
+# Ramadan (input_data) extra contract-only creators, same reasoning.
+_RAMADAN_ROSTER += tuple([
+    Creator(creator_id="ST-013", canonical_name="Menna Samir", instagram_handle="@menna.samir"),
+    Creator(creator_id="ST-014", canonical_name="Bassem Farid", instagram_handle="@bassem.farid"),
 ])
 
 _RAMTECH_ROSTER = tuple([

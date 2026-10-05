@@ -141,6 +141,26 @@ class ReconciliationEngine:
         if dec.creator_id and not dec.needs_review:
             obj.creator_id = dec.creator_id
             return
+        # Unresolved identity: contracts carry full extracted details (name,
+        # handle, fee, deliverables), so register the person as a NEW creator
+        # instead of dumping the contract into an "(unmatched)" bucket. The
+        # record still goes to the human-review queue so it can be merged
+        # with an existing creator if this turns out to be a duplicate.
+        if kind == "contract" and not dec.creator_id and raw:
+            cid = self._register_new_creator(raw, handle)
+            if cid:
+                obj.creator_id = cid
+                obj.match_confidence = max(dec.score, 0.5)
+                obj.match_method = "new_creator"
+                obj.match_reason = (f"'{raw}' not on roster; registered as new creator "
+                                    f"{cid} from contract details")
+                self.result.pending_matches.append(PendingMatch(
+                    raw_value=query or raw, source_file=obj.source_file,
+                    record_kind=kind, record_id=record_id,
+                    suggested_id=cid, score=obj.match_confidence,
+                    reason="new creator auto-registered from contract — "
+                           "review to confirm or merge"))
+                return
         # unresolved or low-confidence -> queue for HUMAN REVIEW (never silent merge)
         self.result.pending_matches.append(PendingMatch(
             raw_value=query or "(blank)", source_file=obj.source_file,
@@ -150,6 +170,27 @@ class ReconciliationEngine:
             obj.creator_id = dec.creator_id
         else:                   # no candidate at all
             obj.creator_id = None
+
+    def _register_new_creator(self, name: str, handle: str | None) -> str | None:
+        """Auto-register a creator discovered only in a contract file."""
+        key = self.registry.normalize_key(name) or ""
+        if not key:
+            return None
+        existing = self.registry.by_key.get(key)
+        if existing:
+            return existing
+        used = {c.upper() for c in self.registry.display}
+        n = len(self.registry.order) + 1
+        cid = f"ST-{n:03d}"
+        while cid in used:
+            n += 1
+            cid = f"ST-{n:03d}"
+        from schemas.creator import Creator
+        cr = Creator(creator_id=cid, canonical_name=name.strip(),
+                     instagram_handle=handle)
+        self.registry.add(cid, cr.canonical_name, instagram_handle=cr.instagram_handle)
+        self.result.creators[cid] = cr
+        return cid
 
     def match_entities(self) -> "ReconciliationEngine":
         for ct in self.result.contracts:
